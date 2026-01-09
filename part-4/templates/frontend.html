@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Book Library – REST API</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --secondary: #00cec9;
+            --dark: #2d3436;
+            --light: #f5f6fa;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: linear-gradient(120deg, var(--primary), var(--secondary));
+            min-height: 100vh;
+            color: var(--dark);
+        }
+
+        header {
+            padding: 40px 20px;
+            text-align: center;
+            color: white;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+
+        header p {
+            margin-top: 10px;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: -40px auto 40px;
+            padding: 20px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .controls button,
+        .controls input {
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+        }
+
+        .controls input {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .controls button {
+            background: var(--primary);
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .controls button:hover {
+            background: #5947d6;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.18);
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+
+        .meta {
+            font-size: 14px;
+            color: #666;
+            margin: 6px 0;
+        }
+
+        .badge {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 4px 10px;
+            font-size: 12px;
+            border-radius: 20px;
+            background: var(--secondary);
+            color: white;
+        }
+
+        .empty {
+            text-align: center;
+            color: white;
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: white;
+            opacity: 0.8;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>📚 Book Library</h1>
+    <p>Modern REST API frontend built with Flask + Fetch API</p>
+</header>
+
+<div class="container">
+    <div class="controls">
+        <input type="text" id="search" placeholder="Search by title...">
+        <button onclick="loadBooks()">🔄 Load Books</button>
+        <button onclick="loadBooks('title')">⬆ Sort by Title</button>
+    </div>
+
+    <div id="bookGrid" class="grid"></div>
+</div>
+
+<footer>
+    Flask REST API • Pagination • Sorting • Fetch API
+</footer>
+
+<script>
+    function loadBooks(sort = 'id') {
+        const query = document.getElementById('search').value;
+        let url = `/api/books?page=1&per_page=12&sort=${sort}`;
+
+        if (query) {
+            url = `/api/books/search?q=${encodeURIComponent(query)}`;
+        }
+
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                const grid = document.getElementById('bookGrid');
+                grid.innerHTML = '';
+
+                const books = data.books || [];
+
+                if (books.length === 0) {
+                    grid.innerHTML = `<div class="empty">No books found 📭</div>`;
+                    return;
+                }
+
+                books.forEach(book => {
+                    grid.innerHTML += `
+                        <div class="card">
+                            <h3>${book.title}</h3>
+                            <div class="meta">✍ Author: ${book.author}</div>
+                            <div class="meta">📅 Year: ${book.year || 'N/A'}</div>
+                            <span class="badge">Book ID: ${book.id}</span>
+                        </div>
+                    `;
+                });
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Failed to load data");
+            });
+    }
+
+    // Auto-load on page load
+    loadBooks();
+</script>
+
+</body>
+</html>

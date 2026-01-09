@@ -46,14 +46,27 @@ def init_db():
 # CREATE - Add new student
 # =============================================================================
 
-@app.route('/add', methods=['GET', 'POST'])  # Allow both GET and POST
+@app.route('/add', methods=['GET', 'POST'])
 def add_student():
-    if request.method == 'POST':  # Form was submitted
-        name = request.form['name']  # Get data from form field named 'name'
+    if request.method == 'POST':
+        name = request.form['name']
         email = request.form['email']
         course = request.form['course']
 
         conn = get_db_connection()
+
+        # Check if email already exists
+        existing = conn.execute(
+            'SELECT * FROM students WHERE email = ?',
+            (email,)
+        ).fetchone()
+
+        if existing:
+            conn.close()
+            flash('Email already exists!', 'danger')
+            return redirect(url_for('add_student'))
+
+        # Insert new student
         conn.execute(
             'INSERT INTO students (name, email, course) VALUES (?, ?, ?)',
             (name, email, course)
@@ -61,10 +74,11 @@ def add_student():
         conn.commit()
         conn.close()
 
-        flash('Student added successfully!', 'success')  # Show success message
-        return redirect(url_for('index'))  # Go back to home page
+        flash('Student added successfully!', 'success')
+        return redirect(url_for('index'))
 
-    return render_template('add.html')  # GET request: show empty form
+    return render_template('add.html')
+
 
 
 # =============================================================================
@@ -73,10 +87,23 @@ def add_student():
 
 @app.route('/')
 def index():
+    search = request.args.get('search', '')  # Get search keyword
+
     conn = get_db_connection()
-    students = conn.execute('SELECT * FROM students ORDER BY id DESC').fetchall()  # Newest first
+
+    if search:
+        students = conn.execute(
+            "SELECT * FROM students WHERE name LIKE ? ORDER BY id DESC",
+            ('%' + search + '%',)
+        ).fetchall()
+    else:
+        students = conn.execute(
+            "SELECT * FROM students ORDER BY id DESC"
+        ).fetchall()
+
     conn.close()
-    return render_template('index.html', students=students)
+    return render_template('index.html', students=students, search=search)
+
 
 
 # =============================================================================

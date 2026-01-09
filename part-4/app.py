@@ -12,20 +12,34 @@ What You'll Learn:
 
 Prerequisites: Complete part-3 (SQLAlchemy)
 """
+"""
+Part 4: REST API with Flask (FINAL VERSION)
+==========================================
+Features:
+- REST API (GET, POST, PUT, DELETE)
+- Pagination
+- Sorting
+- Search & Filter
+- JSON responses
+- Simple frontend using fetch()
+"""
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 app = Flask(__name__)
+
+# =============================================================================
+# DATABASE CONFIG
+# =============================================================================
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///api_demo.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-
 # =============================================================================
-# MODELS
+# MODEL
 # =============================================================================
 
 class Book(db.Model):
@@ -36,99 +50,93 @@ class Book(db.Model):
     isbn = db.Column(db.String(20), unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    def to_dict(self):  # Convert model to dictionary for JSON response
+    def to_dict(self):
         return {
             'id': self.id,
             'title': self.title,
             'author': self.author,
             'year': self.year,
             'isbn': self.isbn,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat()
         }
-
 
 # =============================================================================
 # REST API ROUTES
 # =============================================================================
 
-# GET /api/books - Get all books
+# GET (ALL) + Pagination + Sorting
 @app.route('/api/books', methods=['GET'])
 def get_books():
-    books = Book.query.all()
-    return jsonify({  # Return JSON response
-        'success': True,
-        'count': len(books),
-        'books': [book.to_dict() for book in books]  # List comprehension to convert all
-    })
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 5, type=int)
+    sort = request.args.get('sort', 'id')
+    order = request.args.get('order', 'asc')
 
+    query = Book.query
 
-# GET /api/books/<id> - Get single book
-@app.route('/api/books/<int:id>', methods=['GET'])
-def get_book(id):
-    book = Book.query.get(id)
+    # Sorting
+    if hasattr(Book, sort):
+        column = getattr(Book, sort)
+        query = query.order_by(column.desc() if order == 'desc' else column.asc())
 
-    if not book:
-        return jsonify({
-            'success': False,
-            'error': 'Book not found'
-        }), 404  # Return 404 status code
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
     return jsonify({
         'success': True,
-        'book': book.to_dict()
+        'page': page,
+        'per_page': per_page,
+        'total': pagination.total,
+        'books': [book.to_dict() for book in pagination.items]
     })
 
 
-# POST /api/books - Create new book
+# GET single book
+@app.route('/api/books/<int:id>', methods=['GET'])
+def get_book(id):
+    book = Book.query.get(id)
+    if not book:
+        return jsonify({'success': False, 'error': 'Book not found'}), 404
+
+    return jsonify({'success': True, 'book': book.to_dict()})
+
+
+# POST create book
 @app.route('/api/books', methods=['POST'])
 def create_book():
-    data = request.get_json()  # Get JSON data from request body
+    data = request.get_json()
 
-    # Validation
-    if not data:
-        return jsonify({'success': False, 'error': 'No data provided'}), 400
+    if not data or not data.get('title') or not data.get('author'):
+        return jsonify({'success': False, 'error': 'Title & Author required'}), 400
 
-    if not data.get('title') or not data.get('author'):
-        return jsonify({'success': False, 'error': 'Title and author are required'}), 400
+    if data.get('isbn') and Book.query.filter_by(isbn=data['isbn']).first():
+        return jsonify({'success': False, 'error': 'ISBN already exists'}), 400
 
-    # Check for duplicate ISBN
-    if data.get('isbn'):
-        existing = Book.query.filter_by(isbn=data['isbn']).first()
-        if existing:
-            return jsonify({'success': False, 'error': 'ISBN already exists'}), 400
-
-    # Create book
-    new_book = Book(
+    book = Book(
         title=data['title'],
         author=data['author'],
-        year=data.get('year'),  # Optional field
+        year=data.get('year'),
         isbn=data.get('isbn')
     )
 
-    db.session.add(new_book)
+    db.session.add(book)
     db.session.commit()
 
     return jsonify({
         'success': True,
-        'message': 'Book created successfully',
-        'book': new_book.to_dict()
-    }), 201  # 201 = Created
+        'message': 'Book created',
+        'book': book.to_dict()
+    }), 201
 
 
-# PUT /api/books/<id> - Update book
+# PUT update book
 @app.route('/api/books/<int:id>', methods=['PUT'])
 def update_book(id):
     book = Book.query.get(id)
-
     if not book:
         return jsonify({'success': False, 'error': 'Book not found'}), 404
 
     data = request.get_json()
 
-    if not data:
-        return jsonify({'success': False, 'error': 'No data provided'}), 400
-
-    # Update fields if provided
     if 'title' in data:
         book.title = data['title']
     if 'author' in data:
@@ -140,51 +148,35 @@ def update_book(id):
 
     db.session.commit()
 
-    return jsonify({
-        'success': True,
-        'message': 'Book updated successfully',
-        'book': book.to_dict()
-    })
+    return jsonify({'success': True, 'book': book.to_dict()})
 
 
-# DELETE /api/books/<id> - Delete book
+# DELETE book
 @app.route('/api/books/<int:id>', methods=['DELETE'])
 def delete_book(id):
     book = Book.query.get(id)
-
     if not book:
         return jsonify({'success': False, 'error': 'Book not found'}), 404
 
     db.session.delete(book)
     db.session.commit()
 
-    return jsonify({
-        'success': True,
-        'message': 'Book deleted successfully'
-    })
+    return jsonify({'success': True, 'message': 'Book deleted'})
 
 
-# =============================================================================
-# BONUS: Search and Filter
-# =============================================================================
-
-# GET /api/books/search?q=python&author=john
+# SEARCH & FILTER
 @app.route('/api/books/search', methods=['GET'])
 def search_books():
     query = Book.query
 
-    # Filter by title (partial match)
-    title = request.args.get('q')  # Query parameter: ?q=python
-    if title:
-        query = query.filter(Book.title.ilike(f'%{title}%'))  # Case-insensitive LIKE
-
-    # Filter by author
+    title = request.args.get('q')
     author = request.args.get('author')
+    year = request.args.get('year')
+
+    if title:
+        query = query.filter(Book.title.ilike(f'%{title}%'))
     if author:
         query = query.filter(Book.author.ilike(f'%{author}%'))
-
-    # Filter by year
-    year = request.args.get('year')
     if year:
         query = query.filter_by(year=int(year))
 
@@ -196,93 +188,16 @@ def search_books():
         'books': [book.to_dict() for book in books]
     })
 
-
 # =============================================================================
-# SIMPLE WEB PAGE FOR TESTING
+# FRONTEND ROUTES
 # =============================================================================
 
 @app.route('/')
-def index():
-    return '''
-    <html>
-    <head>
-        <title>Part 4 - REST API</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 40px; background: #1a1a2e; color: #eee; }
-            h1 { color: #e94560; }
-            .endpoint { background: #16213e; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #e94560; }
-            .method { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; margin-right: 10px; }
-            .get { background: #27ae60; }
-            .post { background: #f39c12; }
-            .put { background: #3498db; }
-            .delete { background: #e74c3c; }
-            code { background: #0f3460; padding: 2px 6px; border-radius: 3px; }
-            pre { background: #0f3460; padding: 15px; border-radius: 8px; overflow-x: auto; }
-            a { color: #e94560; }
-        </style>
-    </head>
-    <body>
-        <h1>Part 4: REST API Demo</h1>
-        <p>This is a JSON API - use curl, Postman, or JavaScript fetch() to test!</p>
-
-        <h2>API Endpoints:</h2>
-
-        <div class="endpoint">
-            <span class="method get">GET</span>
-            <code>/api/books</code> - Get all books
-            <br><a href="/api/books" target="_blank">Try it →</a>
-        </div>
-
-        <div class="endpoint">
-            <span class="method get">GET</span>
-            <code>/api/books/&lt;id&gt;</code> - Get single book
-        </div>
-
-        <div class="endpoint">
-            <span class="method post">POST</span>
-            <code>/api/books</code> - Create new book
-        </div>
-
-        <div class="endpoint">
-            <span class="method put">PUT</span>
-            <code>/api/books/&lt;id&gt;</code> - Update book
-        </div>
-
-        <div class="endpoint">
-            <span class="method delete">DELETE</span>
-            <code>/api/books/&lt;id&gt;</code> - Delete book
-        </div>
-
-        <div class="endpoint">
-            <span class="method get">GET</span>
-            <code>/api/books/search?q=&lt;title&gt;&author=&lt;name&gt;</code> - Search books
-        </div>
-
-        <h2>Test with curl:</h2>
-        <pre>
-# Get all books
-curl http://localhost:5000/api/books
-
-# Create a book
-curl -X POST http://localhost:5000/api/books \\
-  -H "Content-Type: application/json" \\
-  -d '{"title": "Flask Web Development", "author": "Miguel Grinberg", "year": 2018}'
-
-# Update a book
-curl -X PUT http://localhost:5000/api/books/1 \\
-  -H "Content-Type: application/json" \\
-  -d '{"year": 2023}'
-
-# Delete a book
-curl -X DELETE http://localhost:5000/api/books/1
-        </pre>
-    </body>
-    </html>
-    '''
-
+def home():
+    return render_template('frontend.html')
 
 # =============================================================================
-# INITIALIZE DATABASE WITH SAMPLE DATA
+# INIT DATABASE
 # =============================================================================
 
 def init_db():
@@ -290,15 +205,19 @@ def init_db():
         db.create_all()
 
         if Book.query.count() == 0:
-            sample_books = [
-                Book(title='Python Crash Course', author='Eric Matthes', year=2019, isbn='978-1593279288'),
-                Book(title='Flask Web Development', author='Miguel Grinberg', year=2018, isbn='978-1491991732'),
-                Book(title='Clean Code', author='Robert C. Martin', year=2008, isbn='978-0132350884'),
+            books = [
+                Book(title='Python Crash Course', author='Eric Matthes', year=2019),
+                Book(title='Flask Web Development', author='Miguel Grinberg', year=2018),
+                Book(title='Clean Code', author='Robert C. Martin', year=2008),
+                Book(title='Effective Python', author='Brett Slatkin', year=2020)
             ]
-            db.session.add_all(sample_books)
+            db.session.add_all(books)
             db.session.commit()
-            print('Sample books added!')
+            print("Sample books inserted")
 
+# =============================================================================
+# MAIN
+# =============================================================================
 
 if __name__ == '__main__':
     init_db()

@@ -5,41 +5,85 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
         h1 { color: #333; }
-        form { background: white; padding: 30px; border-radius: 8px; max-width: 400px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        form {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 400px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
         label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
         input[type="text"], input[type="email"] {
             width: 100%; padding: 10px; margin-bottom: 20px;
-            border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;
+            border: 1px solid #ddd; border-radius: 4px;
+            box-sizing: border-box;
         }
         input:focus { border-color: #2196F3; outline: none; }
-        .btn { padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+        }
         .btn-submit { background: #2196F3; color: white; }
         .btn-cancel { background: #ccc; color: #333; margin-left: 10px; }
         .btn:hover { opacity: 0.9; }
-        .info { background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 20px; color: #1565c0; }
+
+        .info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            color: #1565c0;
+        }
+
+        .flash {
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .flash.success { background: #d4edda; color: #155724; }
+        .flash.danger { background: #f8d7da; color: #721c24; }
     </style>
 </head>
+
 <body>
     <h1>Edit Student</h1>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 
     <form method="POST">
         <div class="info">Editing Student ID: {{ student['id'] }}</div>
 
         <label for="name">Name:</label>
-        <input type="text" id="name" name="name" value="{{ student['name'] }}" required>
-        <!-- value="{{ student['name'] }}" pre-fills the form with current data -->
+        <input type="text" id="name" name="name"
+               value="{{ student['name'] }}" required>
 
         <label for="email">Email:</label>
-        <input type="email" id="email" name="email" value="{{ student['email'] }}" required>
+        <input type="email" id="email" name="email"
+               value="{{ student['email'] }}" required>
 
         <label for="course">Course:</label>
-        <input type="text" id="course" name="course" value="{{ student['course'] }}" required>
+        <input type="text" id="course" name="course"
+               value="{{ student['course'] }}" required>
 
         <button type="submit" class="btn btn-submit">Update Student</button>
         <a href="{{ url_for('index') }}" class="btn btn-cancel">Cancel</a>
     </form>
 
     <hr>
-    <p><strong>Note:</strong> The form is pre-filled with current values using value="{% raw %}{{ student['field'] }}{% endraw %}" attribute</p>
+    <p>
+        <strong>Note:</strong> The form is pre-filled using
+        <code>value="{{ student['field'] }}"</code>
+    </p>
 </body>
 </html>

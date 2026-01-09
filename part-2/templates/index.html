@@ -13,14 +13,18 @@
         .btn-add { background: #4CAF50; color: white; padding: 12px 24px; }
         .btn-edit { background: #2196F3; color: white; }
         .btn-delete { background: #f44336; color: white; }
+        .btn-search { background: #555; color: white; }
         .btn:hover { opacity: 0.8; }
         .flash { padding: 15px; margin: 15px 0; border-radius: 4px; }
         .flash.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .flash.danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .empty { color: #888; font-style: italic; padding: 20px; }
         .actions { white-space: nowrap; }
+        .search-box { margin: 20px 0; }
+        input[type="text"] { padding: 10px; width: 250px; }
     </style>
 </head>
+
 <body>
     <h1>Student Management (Part 2 - Full CRUD)</h1>
 
@@ -33,7 +37,16 @@
         {% endif %}
     {% endwith %}
 
+    <!-- Add Student Button -->
     <a href="{{ url_for('add_student') }}" class="btn btn-add">+ Add New Student</a>
+
+    <!-- Search Form -->
+    <div class="search-box">
+        <form method="get" action="/">
+            <input type="text" name="search" placeholder="Search by name" value="{{ search }}">
+            <button type="submit" class="btn btn-search">Search</button>
+        </form>
+    </div>
 
     {% if students %}
         <table>
@@ -44,6 +57,7 @@
                 <th>Course</th>
                 <th>Actions</th>
             </tr>
+
             {% for student in students %}
             <tr>
                 <td>{{ student['id'] }}</td>
@@ -52,17 +66,20 @@
                 <td>{{ student['course'] }}</td>
                 <td class="actions">
                     <a href="{{ url_for('edit_student', id=student['id']) }}" class="btn btn-edit">Edit</a>
-                    <a href="{{ url_for('delete_student', id=student['id']) }}" class="btn btn-delete"
-                       onclick="return confirm('Are you sure you want to delete this student?')">Delete</a>
+                    <a href="{{ url_for('delete_student', id=student['id']) }}"
+                       class="btn btn-delete"
+                       onclick="return confirm('Are you sure you want to delete this student?')">
+                        Delete
+                    </a>
                 </td>
             </tr>
             {% endfor %}
         </table>
     {% else %}
-        <p class="empty">No students yet. Click "Add New Student" to create one!</p>
+        <p class="empty">No students found.</p>
     {% endif %}
 
     <hr>
-    <p><strong>CRUD Operations:</strong> Create (Add) | Read (List) | Update (Edit) | Delete</p>
+    <p><strong>CRUD Operations:</strong> Create (Add) | Read (List/Search) | Update (Edit) | Delete</p>
 </body>
 </html>
